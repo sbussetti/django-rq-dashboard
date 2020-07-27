@@ -59,7 +59,7 @@ def serialize_worker(worker):
     return dict(
         name=worker.name,
         queues=[q.name for q in worker.queues],
-        state=worker.get_state().decode('utf-8'),
+        state=worker.get_state(),
         url=reverse('rq_worker', args=[worker.name]),
     )
 
@@ -79,6 +79,7 @@ def serialize_scheduled_queues(queue):
 
 
 class SuperUserMixin(object):
+
     connection = None
 
     @method_decorator(user_passes_test(lambda u: u.is_superuser))
@@ -91,6 +92,9 @@ class SuperUserMixin(object):
             return super(SuperUserMixin, self).dispatch(
                 request, *args, **kwargs)
 
+def by_name(obj):
+    return obj.name
+
 
 class Stats(SuperUserMixin, generic.TemplateView):
     template_name = 'rq/stats.html'
@@ -98,8 +102,10 @@ class Stats(SuperUserMixin, generic.TemplateView):
     def get_context_data(self, **kwargs):
         ctx = super(Stats, self).get_context_data(**kwargs)
         ctx.update({
-            'queues': Queue.all(connection=self.connection),
-            'workers': Worker.all(connection=self.connection),
+            'queues': sorted(Queue.all(connection=self.connection),
+                             key=by_name),
+            'workers': sorted(Worker.all(connection=self.connection),
+                              key=by_name),
             'has_permission': True,
             'title': 'RQ Status',
         })
